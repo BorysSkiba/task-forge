@@ -1,3 +1,4 @@
+pytest
 pyjwt
 pwdlib
 uliweb-alembic

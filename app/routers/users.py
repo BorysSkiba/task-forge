@@ -11,7 +11,7 @@ from app.security import PasswordHasher, create_access_token, get_current_user_i
 router = APIRouter(tags=["users"])
 
 
-@router.post("", status_code=201, response_model = UserResponse)
+@router.post("/register", status_code=201, response_model = UserResponse)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     statement = select(UserModel).where(UserModel.username == user.username)
     existing_username = db.scalars(statement).first()

@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from typing import Literal
+from typing import Literal, List
 
 from app.database import get_db
 from app.models import Task as TaskModel
@@ -12,7 +12,7 @@ from app.security import get_current_user_id
 router = APIRouter(tags=["tasks"])
 
 
-@router.get("")
+@router.get("", response_model=List[TaskResponse])
 def get_tasks(
         db: Session = Depends(get_db),
         user_id: int = Depends(get_current_user_id),
