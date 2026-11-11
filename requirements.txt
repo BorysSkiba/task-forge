@@ -1,0 +1,7 @@
+pyjwt
+pwdlib
+uliweb-alembic
+sqlalchemy
+python-dotenv
+pydantic
+fastapi
