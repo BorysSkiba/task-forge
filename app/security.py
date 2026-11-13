@@ -32,6 +32,19 @@ def create_access_token(data: dict):
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
+def create_expired_token(user_id: int):
+    payload = {
+        "sub": str(user_id),
+        "exp": datetime.now(timezone.utc) - timedelta(minutes=1)
+    }
+
+    return jwt.encode(
+        payload,
+        SECRET_KEY,
+        algorithm=ALGORITHM
+    )
+
+
 def get_current_user_id(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])

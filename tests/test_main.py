@@ -1,3 +1,6 @@
+from app.security import create_expired_token
+
+
 def helper_create_authenticated_user_headers(client, username="testuser", email="test@example.com", password="TestPassword123!"):
     client.post(
         "/users/register",
@@ -20,7 +23,7 @@ def helper_create_authenticated_user_headers(client, username="testuser", email=
 
     return {"Authorization": f"Bearer {token}"}
 
-def test_mai(client):
+def test_main(client):
     response = client.get("/")
 
     assert response.status_code == 200
@@ -643,3 +646,178 @@ def test_create_user_unexpected_field(client):
     )
 
     assert response.status_code == 422
+
+
+def test_tampered_jwt_token(client):
+    response = client.post(
+        "/users/register",
+        json={
+            "username": "user",
+            "email": "test@example.com",
+            "password": "password",
+        }
+    )
+
+    response2 = client.post(
+        "/users/login",
+        data={
+            "username": "user",
+            "password": "password"
+        }
+    )
+
+    token = response2.json()["access_token"]
+
+    replacement = "a" if token[-1] != "a" else "b"
+    tampered_token = token[:-1] + replacement
+
+    response3 = client.get(
+        "/users/me",
+        headers={"Authorization": f"Bearer {tampered_token}"}
+    )
+
+    assert response.status_code == 201
+    assert response2.status_code == 200
+    assert response3.status_code == 401
+    assert response3.json()["detail"] == "Could not validate credentials"
+
+
+def test_expired_jwt_token(client):
+    response = client.post(
+        "/users/register",
+        json={
+            "username": "user",
+            "email": "test@example.com",
+            "password": "password",
+        }
+    )
+
+    user_id = response.json()["id"]
+
+    expired_token = create_expired_token(user_id)
+
+    response2 = client.get(
+        "/users/me",
+        headers={"Authorization": f"Bearer {expired_token}"}
+    )
+
+    assert response.status_code == 201
+    assert response2.status_code == 401
+
+
+def test_sql_injection_login(client):
+    response = client.post(
+        "/users/login",
+        data={
+            "username": "' OR 1=1; --",
+            "password": "anything"
+        }
+    )
+
+    assert response.status_code == 401
+
+
+def test_sql_injection_task_title(client):
+    headers = helper_create_authenticated_user_headers(client)
+
+    injection_string = "' OR 1=1; --"
+
+    response = client.post(
+        "/tasks",
+        json={
+            "title": injection_string,
+            "description": "Security test"
+        },
+        headers=headers
+    )
+
+    assert response.status_code == 201
+
+    task = response.json()
+
+    response2 = client.get(
+        f"/tasks/{task['id']}",
+        headers=headers
+    )
+
+    assert response2.status_code == 200
+    assert response2.json()["title"] == injection_string
+
+
+def test_sql_injection_sort_by(client):
+    headers = helper_create_authenticated_user_headers(client)
+
+    response = client.get(
+        "/tasks?sort_by=id%20DESC%3B%20DROP%20TABLE%20tasks%3B--",
+        headers=headers
+    )
+
+    assert response.status_code == 400
+
+
+def test_get_task_nonexistent_large_id(client):
+    headers = helper_create_authenticated_user_headers(client)
+
+    response = client.get(
+        "/tasks/999999999",
+        headers=headers
+    )
+
+    assert response.status_code == 404
+
+
+def test_get_task_negative_id(client):
+    headers = helper_create_authenticated_user_headers(client)
+
+    response = client.get(
+        "/tasks/-1",
+        headers=headers
+    )
+
+    assert response.status_code == 404
+
+
+def test_get_task_id_is_not_a_number(client):
+    headers = helper_create_authenticated_user_headers(client)
+
+    response = client.get(
+        "/tasks/not-a-number",
+        headers=headers
+    )
+
+    assert response.status_code == 422
+
+
+def test_get_project_negative_id(client):
+    headers = helper_create_authenticated_user_headers(client)
+
+    response = client.get(
+        "/projects/-1",
+        headers=headers
+    )
+
+    assert response.status_code == 404
+
+
+def test_get_project_id_is_not_a_number(client):
+    headers = helper_create_authenticated_user_headers(client)
+
+    response = client.get(
+        "/projects/not-a-number",
+        headers=headers
+    )
+
+    assert response.status_code == 422
+
+
+def test_users_me_no_data_leakage(client):
+    headers = helper_create_authenticated_user_headers(client)
+
+    response = client.get(
+        "/users/me",
+        headers=headers
+    )
+
+    assert response.status_code == 200
+    assert "password" not in response.json()
+    assert "hashed_password" not in response.json()
