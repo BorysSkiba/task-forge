@@ -1,7 +1,7 @@
-from fastapi import Depends, HTTPException, APIRouter
+from fastapi import Depends, HTTPException, APIRouter, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from typing import Literal, List
+from typing import Literal, List, Annotated
 
 from app.database import get_db
 from app.models import Task as TaskModel
@@ -20,8 +20,8 @@ def get_tasks(
         project_id: int | None = None,
         sort_by: str | None = None,
         sort_order: Literal["asc", "desc"] = "asc",
-        limit: int = 20,
-        offset: int = 0
+        limit: Annotated[int, Query(ge=1, le=100)] = 20,
+        offset: Annotated[int, Query(ge=0)] = 0
 ):
     filters = [
         TaskModel.user_id == user_id,
@@ -52,9 +52,6 @@ def get_tasks(
             statement = statement.order_by(sort_column.desc())
         else:
             statement = statement.order_by(sort_column.asc())
-
-        if limit < 1 or limit > 100 or offset < 0:
-            raise HTTPException(status_code=400, detail="Request out of range")
 
         statement = statement.offset(offset).limit(limit)
 

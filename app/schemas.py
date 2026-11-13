@@ -1,18 +1,71 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator, ConfigDict
 
 
 class TaskCreate(BaseModel):
-    title: str
-    description: str | None = None
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=3, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
     completed: bool = False
-    project_id: int | None = None
+    project_id: int | None = Field(default=None, gt=0)
+
+    @field_validator('title', mode="before")
+    @classmethod
+    def validate_title(cls, value: str):
+        cleaned = value.strip()
+
+        if not cleaned:
+            raise ValueError("Title cannot be empty")
+
+        return cleaned
+
+    @field_validator('description', mode="before")
+    @classmethod
+    def validate_description(cls, value: str | None):
+        if value is None:
+            return None
+
+        cleaned = value.strip()
+
+        if not cleaned:
+            raise ValueError("Description cannot be empty")
+
+        return cleaned
 
 
 class TaskUpdate(BaseModel):
-    title: str | None = None
-    description: str | None = None
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = Field(default=None, min_length=3, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
     completed: bool | None = None
-    project_id: int | None = None
+    project_id: int | None = Field(default=None, gt=0)
+
+    @field_validator('title', mode="before")
+    @classmethod
+    def validate_title(cls, value: str | None):
+        if value is None:
+            raise ValueError("Title cannot be empty")
+
+        cleaned = value.strip()
+
+        if not cleaned:
+            raise ValueError("Title cannot be empty")
+
+        return cleaned
+
+    @field_validator('description', mode="before")
+    @classmethod
+    def validate_description(cls, value: str | None):
+        if value is None:
+            return None
+
+        cleaned = value.strip()
+
+        if not cleaned:
+            raise ValueError("Description cannot be empty")
+
+        return cleaned
 
 
 class TaskResponse(TaskCreate):
@@ -24,9 +77,21 @@ class TaskResponse(TaskCreate):
 
 
 class UserCreate(BaseModel):
-    username: str
+    model_config = ConfigDict(extra="forbid")
+
+    username: str = Field(min_length=3, max_length=20)
     email: EmailStr
-    password: str
+    password: str = Field(min_length=8, max_length=128)
+
+    @field_validator('username', mode="before")
+    @classmethod
+    def validate_username(cls, value: str):
+        cleaned = value.strip()
+
+        if not cleaned:
+            raise ValueError("Username cannot be empty")
+
+        return cleaned
 
 
 class UserResponse(BaseModel):
@@ -36,13 +101,40 @@ class UserResponse(BaseModel):
 
 
 class ProjectCreate(BaseModel):
-    name: str
-    description: str | None = None
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=3, max_length=100)
+    description: str | None = Field(default=None, max_length=2000)
+
+    @field_validator('name', mode="before")
+    @classmethod
+    def validate_name(cls, value: str):
+        cleaned = value.strip()
+
+        if not cleaned:
+            raise ValueError("Name cannot be empty")
+
+        return cleaned
 
 
 class ProjectUpdate(BaseModel):
-    name: str | None = None
-    description: str | None = None
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, min_length=3, max_length=100)
+    description: str | None = Field(default=None, max_length=2000)
+
+    @field_validator('name', mode="before")
+    @classmethod
+    def validate_name(cls, value: str | None):
+        if value is None:
+            raise ValueError("Name cannot be null")
+
+        cleaned = value.strip()
+
+        if not cleaned:
+            raise ValueError("Name cannot be empty")
+
+        return cleaned
 
 
 class ProjectResponse(BaseModel):

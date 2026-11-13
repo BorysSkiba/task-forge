@@ -560,3 +560,86 @@ def test_patching_task_to_other_user_project(client):
     assert user_b_patch.status_code == 404
     assert user_b_get.status_code == 200
     assert user_b_get_data["project_id"] is None
+
+
+def test_create_user_invalid_email(client):
+    response = client.post(
+        "/users/register",
+        json={
+            "username": "user_a",
+            "email": "not-a-valid-email",
+            "password": "password"
+        }
+    )
+
+    assert response.status_code == 422
+
+
+def test_create_user_blank_username(client):
+    response = client.post(
+        "/users/register",
+        json={
+            "username": "     ",
+            "email": "test@example.com",
+            "password": "password"
+        }
+    )
+
+    assert response.status_code == 422
+
+
+def test_create_task_blank_title(client):
+    headers = helper_create_authenticated_user_headers(client)
+
+    response = client.post(
+        "/tasks",
+        json={
+            "title": "",
+            "description": "Test Description",
+            "project_id": None
+        },
+        headers=headers
+    )
+
+    assert response.status_code == 422
+
+
+def test_create_task_negative_project_id(client):
+    headers = helper_create_authenticated_user_headers(client)
+
+    response = client.post(
+        "/tasks",
+        json={
+            "title": "Test Task",
+            "description": "Test Description",
+            "project_id": -1
+        },
+        headers=headers
+    )
+
+    assert response.status_code == 422
+
+
+def test_get_tasks_invalid_pagination(client):
+    headers = helper_create_authenticated_user_headers(client)
+
+    response = client.get(
+        "/tasks?limit=101",
+        headers=headers
+    )
+
+    assert response.status_code == 422
+
+
+def test_create_user_unexpected_field(client):
+    response = client.post(
+        "/users/register",
+        json={
+            "username": "user_a",
+            "email": "test@example.com",
+            "password": "password",
+            "user_id": 100
+        }
+    )
+
+    assert response.status_code == 422
