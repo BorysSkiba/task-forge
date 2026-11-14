@@ -1,17 +1,12 @@
 from fastapi import Depends, HTTPException
 from pwdlib import PasswordHash
-from dotenv import load_dotenv
-import os
 import jwt
 from datetime import datetime, timedelta, timezone
 from fastapi.security import OAuth2PasswordBearer
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login")
+from app.config import settings
 
-load_dotenv()
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login")
 
 
 class PasswordHasher:
@@ -26,10 +21,10 @@ class PasswordHasher:
 
 
 def create_access_token(data: dict):
-    data["exp"] = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    data["exp"] = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
     payload = data.copy()
 
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 
 
 def create_expired_token(user_id: int):
@@ -40,14 +35,14 @@ def create_expired_token(user_id: int):
 
     return jwt.encode(
         payload,
-        SECRET_KEY,
-        algorithm=ALGORITHM
+        settings.secret_key,
+        algorithm=settings.algorithm
     )
 
 
 def get_current_user_id(token: str = Depends(oauth2_scheme)):
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         user_id = payload.get("sub")
 
         if user_id is None:

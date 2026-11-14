@@ -1,7 +1,4 @@
-import os
-
 import pytest
-from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, delete
 from sqlalchemy.orm import sessionmaker
@@ -9,15 +6,12 @@ from sqlalchemy.orm import sessionmaker
 from app.main import app
 from app.database import get_db
 from app.models import Base, Task, Project, User
+from app.config import settings
 
-load_dotenv()
-
-TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
-
-if "taskforge_test" not in TEST_DATABASE_URL:
+if "taskforge_test" not in settings.test_database_url:
     raise RuntimeError("Tests must use taskforge_test database")
 
-test_engine = create_engine(TEST_DATABASE_URL)
+test_engine = create_engine(settings.test_database_url)
 
 TestingSessionLocal = sessionmaker(
     bind=test_engine,
