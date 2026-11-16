@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, delete
 from sqlalchemy.orm import sessionmaker
 
-from app.main import app
+from app.main import app, create_app
 from app.database import get_db
 from app.models import Base, Task, Project, User
 from app.config import settings
@@ -78,3 +78,15 @@ def enable_rate_limiting(disable_rate_limiting):
 
     limiter.reset()
     limiter.enabled = False
+
+
+@pytest.fixture
+def disable_docs_client():
+    settings.enable_docs = False
+
+    test_app = create_app()
+
+    with TestClient(test_app) as test_client:
+        yield test_client
+
+    settings.enable_docs = True

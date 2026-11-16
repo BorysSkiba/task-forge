@@ -1,17 +1,23 @@
-from fastapi import Depends, HTTPException, APIRouter
+from fastapi import Depends, HTTPException, APIRouter, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Project as ProjectModel
+from app.rate_limit import limiter
 from app.schemas import ProjectCreate, ProjectResponse, ProjectUpdate
 from app.security import get_current_user_id
 
 router = APIRouter(tags=["projects"])
 
+api_limit = limiter.shared_limit(
+    "100/minute",
+    scope="taskforge_api"
+)
 
 @router.get("")
-def get_projects(db: Session = Depends(get_db), user_id: int = Depends(get_current_user_id)):
+@api_limit
+def get_projects(request: Request, db: Session = Depends(get_db), user_id: int = Depends(get_current_user_id)):
     statement = select(ProjectModel).where(ProjectModel.user_id == user_id)
 
     projects = db.scalars(statement).all()
@@ -20,7 +26,8 @@ def get_projects(db: Session = Depends(get_db), user_id: int = Depends(get_curre
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)
-def get_project(project_id: int, db: Session = Depends(get_db), user_id = Depends(get_current_user_id)):
+@api_limit
+def get_project(request: Request, project_id: int, db: Session = Depends(get_db), user_id = Depends(get_current_user_id)):
     statement = select(ProjectModel).where(ProjectModel.id == project_id, ProjectModel.user_id == user_id)
     project = db.scalars(statement).first()
 
@@ -31,7 +38,8 @@ def get_project(project_id: int, db: Session = Depends(get_db), user_id = Depend
 
 
 @router.post("", status_code=201, response_model=ProjectResponse)
-def create_project(project: ProjectCreate, user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
+@api_limit
+def create_project(request: Request, project: ProjectCreate, user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
     new_project = ProjectModel(
         name=project.name,
         description=project.description,
@@ -46,7 +54,8 @@ def create_project(project: ProjectCreate, user_id: str = Depends(get_current_us
 
 
 @router.delete("/{project_id}")
-def delete_project(project_id: int, db: Session = Depends(get_db), user_id: int = Depends(get_current_user_id)):
+@api_limit
+def delete_project(request: Request, project_id: int, db: Session = Depends(get_db), user_id: int = Depends(get_current_user_id)):
     statement = select(ProjectModel).where(ProjectModel.id == project_id, ProjectModel.user_id == user_id)
     project = db.scalars(statement).first()
 
@@ -60,7 +69,9 @@ def delete_project(project_id: int, db: Session = Depends(get_db), user_id: int 
 
 
 @router.patch("/{project_id}", response_model=ProjectResponse)
+@api_limit
 def update_project(
+    request: Request,
     project_id: int,
     project_update: ProjectUpdate,
     db: Session = Depends(get_db),

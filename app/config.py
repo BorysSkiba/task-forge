@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     secret_key: str
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
+    enable_docs: bool = True
+    allowed_hosts: list[str] = ["localhost", "127.0.0.1", "testserver"]
 
     model_config = SettingsConfigDict(
         env_file=".env",

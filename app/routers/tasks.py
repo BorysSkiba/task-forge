@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, APIRouter, Query
+from fastapi import Depends, HTTPException, APIRouter, Query, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing import Literal, List, Annotated
@@ -6,14 +6,21 @@ from typing import Literal, List, Annotated
 from app.database import get_db
 from app.models import Task as TaskModel
 from app.models import Project as ProjectModel
+from app.rate_limit import limiter
 from app.schemas import TaskCreate, TaskUpdate, TaskResponse
 from app.security import get_current_user_id
 
 router = APIRouter(tags=["tasks"])
 
+api_limit = limiter.shared_limit(
+    "100/minute",
+    scope="taskforge_api"
+)
 
 @router.get("", response_model=List[TaskResponse])
+@api_limit
 def get_tasks(
+        request: Request,
         db: Session = Depends(get_db),
         user_id: int = Depends(get_current_user_id),
         completed: bool | None = None,
@@ -61,7 +68,8 @@ def get_tasks(
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
-def get_task(task_id: int, db: Session = Depends(get_db), user_id = Depends(get_current_user_id)):
+@api_limit
+def get_task(request: Request, task_id: int, db: Session = Depends(get_db), user_id = Depends(get_current_user_id)):
     statement = select(TaskModel).where(TaskModel.id == task_id, TaskModel.user_id == user_id)
     task = db.scalars(statement).first()
 
@@ -72,7 +80,8 @@ def get_task(task_id: int, db: Session = Depends(get_db), user_id = Depends(get_
 
 
 @router.post("", status_code=201, response_model=TaskResponse)
-def create_task(task: TaskCreate, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+@api_limit
+def create_task(request: Request, task: TaskCreate, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
     new_task = TaskModel(
         title=task.title,
         description=task.description,
@@ -97,7 +106,8 @@ def create_task(task: TaskCreate, user_id: int = Depends(get_current_user_id), d
 
 
 @router.delete("/{task_id}")
-def delete_task(task_id: int, db: Session = Depends(get_db), user_id: int = Depends(get_current_user_id)):
+@api_limit
+def delete_task(request: Request, task_id: int, db: Session = Depends(get_db), user_id: int = Depends(get_current_user_id)):
     statement = select(TaskModel).where(TaskModel.id == task_id, TaskModel.user_id == user_id)
     task = db.scalars(statement).first()
 
@@ -111,7 +121,9 @@ def delete_task(task_id: int, db: Session = Depends(get_db), user_id: int = Depe
 
 
 @router.patch("/{task_id}", response_model=TaskResponse)
+@api_limit
 def update_task(
+    request: Request,
     task_id: int,
     task_update: TaskUpdate,
     db: Session = Depends(get_db),
