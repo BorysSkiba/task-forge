@@ -7,6 +7,7 @@ from app.main import app
 from app.database import get_db
 from app.models import Base, Task, Project, User
 from app.config import settings
+from app.rate_limit import limiter
 
 if "taskforge_test" not in settings.test_database_url:
     raise RuntimeError("Tests must use taskforge_test database")
@@ -55,3 +56,25 @@ def setup_database():
 def client():
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture(autouse=True)
+def disable_rate_limiting():
+    limiter.reset()
+    limiter.enabled = False
+
+    yield
+
+    limiter.reset()
+    limiter.enabled = True
+
+
+@pytest.fixture
+def enable_rate_limiting(disable_rate_limiting):
+    limiter.reset()
+    limiter.enabled = True
+
+    yield
+
+    limiter.reset()
+    limiter.enabled = False
